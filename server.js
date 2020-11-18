@@ -96,7 +96,33 @@ app.put('/image', (req, res) => {
         email: req.body.email
     }, {
         $inc: { entries: 1 }
-    }, (updateResult) => {
-        res.json('Updated entries');
+    }, (err, updateResult) => {
+        if (err) {
+            res.json('Error updating user data');    
+        } else {
+            res.json('Updated entries');
+        }
+    })
+});
+
+app.delete('/delete', (req, res) => {
+    const { email } = req.body;
+
+    db.collection('users').deleteOne({ 
+        email: email 
+    }, (err, deleteResult) => {
+        if (err) {
+            res.json('Error deleting user entry');
+        } else {
+            db.collection('signup').deleteOne({
+                email: email
+            }, (err, result) => {
+                if (err) {
+                    res.json('Error deleting user entry');
+                } else {
+                    res.json('Entry deleted');
+                }
+            })
+        }
     })
 });

@@ -2,10 +2,13 @@ const express = require('express');
 const mongodb = require("mongodb");
 const dotenv = require('dotenv');
 const bcrypt = require('bcrypt');
+const cors = require('cors');
 
 dotenv.config();
 
 let db;
+let usersCollection;
+let signUpCollection;
 
 let port = process.env.PORT;
 if (port == null || port == "") {
@@ -16,6 +19,7 @@ const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cors());
 
 const connectionString = process.env.CONNECTION_STRING;
 
@@ -23,6 +27,8 @@ mongodb.connect(connectionString, { useNewUrlParser: true, useUnifiedTopology: t
     .then((mongoClient) => {
         console.log("Database connected successfully");
         db = mongoClient.db();
+        usersCollection = db.collection('users');
+        signUpCollection = db.collection('signup');
         app.listen(port);
     })
     .catch((reason) => {
@@ -30,18 +36,24 @@ mongodb.connect(connectionString, { useNewUrlParser: true, useUnifiedTopology: t
     });
 
 app.get('/', (req, res) => {
-    console.log('Root');
+    usersCollection.find({}).toArray((err, docs) => {
+        if (err) {
+            res.json('Error getting records from DB');
+        } else {
+            res.json(docs);
+        }
+    })
 });
 
 app.post('/register', (req, res) => {
     const { email, name, password } = req.body;
 
-    db.collection('users').findOne({ email: email })
+    usersCollection.findOne({ email: email })
         .then((value) => {
             if (value) {
                 res.json('Email is already in use');
             } else {
-                db.collection('users').insertOne({
+                usersCollection.insertOne({
                     email: email,
                     name: name,
                     entries: 0,
@@ -54,7 +66,7 @@ app.post('/register', (req, res) => {
                             // hash the password
                             const salt = bcrypt.genSaltSync(10);
                             const hash = bcrypt.hashSync(password, salt);
-                            db.collection('signup').insertOne({
+                            signUpCollection.insertOne({
                                 email: email,
                                 hash: hash
                             }, (err, user) => {
@@ -77,11 +89,12 @@ app.post('/register', (req, res) => {
 app.post('/signin', (req, res) => {
     const { email, password } = req.body;
 
-    db.collection('signup').findOne({ email: email })
+    signUpCollection.findOne({ email: email })
         .then((dbUser) => {
             if (dbUser) {
                 if (bcrypt.compareSync(password, dbUser.hash)) {
-                    res.json('Logged In');
+                    usersCollection.findOne({ email: dbUser.email })
+                        .then(user => res.json(user))
                 } else {
                     res.json('The provided combination of email and password is incorrect');
                 }
@@ -89,10 +102,11 @@ app.post('/signin', (req, res) => {
                 res.json('The email in invalid. Please register first before Signing In');
             }
         })
+        .catch(err => res.json('Error signing in'))
 });
 
 app.put('/image', (req, res) => {
-    db.collection('users').updateOne({
+    usersCollection.updateOne({
         email: req.body.email
     }, {
         $inc: { entries: 1 }
@@ -100,7 +114,8 @@ app.put('/image', (req, res) => {
         if (err) {
             res.json('Error updating user data');    
         } else {
-            res.json('Updated entries');
+            usersCollection.findOne({ email: req.body.email })
+                .then(user => res.json(user.entries))
         }
     })
 });
@@ -108,13 +123,13 @@ app.put('/image', (req, res) => {
 app.delete('/delete', (req, res) => {
     const { email } = req.body;
 
-    db.collection('users').deleteOne({ 
+    usersCollection.deleteOne({ 
         email: email 
     }, (err, deleteResult) => {
         if (err) {
             res.json('Error deleting user entry');
         } else {
-            db.collection('signup').deleteOne({
+            signUpCollection.deleteOne({
                 email: email
             }, (err, result) => {
                 if (err) {

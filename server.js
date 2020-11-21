@@ -15,7 +15,6 @@ dotenv.config();
 let db;
 let usersCollection;
 let signUpCollection;
-
 let port = process.env.PORT;
 if (port == null || port == "") {
     port = 3005;

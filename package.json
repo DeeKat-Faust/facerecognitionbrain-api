@@ -1,5 +1,5 @@
 {
-  "name": "y",
+  "name": "smartbrainapi",
   "version": "1.0.0",
   "description": "backend for face recognition brain app",
   "main": "server.js",
@@ -7,7 +7,6 @@
     "watch": "nodemon server.js",
     "start": "node server.js"
   },
-  "type": "module",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/DeeKat-Faust/facerecognitionbrain-api.git"
